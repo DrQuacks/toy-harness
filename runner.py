@@ -29,9 +29,19 @@ def run_command(command: list[str], cwd: Path, timeout_seconds: int = 10) -> Run
         )
 
     except subprocess.TimeoutExpired as error:
+        raw_stdout = error.stdout
+
+        if raw_stdout is None:
+            timeout_stdout = ""
+        elif isinstance(raw_stdout, str):
+            timeout_stdout = raw_stdout
+        else:
+            # Handles bytes, bytearray, memoryview
+            timeout_stdout = bytes(raw_stdout).decode("utf-8", errors="replace")
+
         return RunResult(
             ok=False,
             exit_code=124,
-            stdout=error.stdout or "",
+            stdout=timeout_stdout,
             stderr=f"Command timed out after {timeout_seconds} seconds.",
         )
