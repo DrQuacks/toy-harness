@@ -5,8 +5,8 @@ from workspace import create_workspace, read_workspace_files
 
 
 def main() -> None:
-    task_dir = Path("tasks/hello-world")
-    workspace_dir = Path("workspace/hello-world")
+    task_dir = Path("tasks/task1")
+    workspace_dir = Path("workspace/task1")
 
     create_workspace(task_dir, workspace_dir)
 
