@@ -18,3 +18,13 @@ def create_workspace(task_dir: Path, workspace_dir: Path) -> Path:
         shutil.copy2(run_script, workspace_dir / "run.sh")
 
     return workspace_dir
+
+def read_workspace_files(workspace_dir: Path) -> dict[str, str]:
+    files: dict[str, str] = {}
+
+    for path in workspace_dir.rglob("*"):
+        if path.is_file() and path.name != "run.sh":
+            relative_path = path.relative_to(workspace_dir)
+            files[str(relative_path)] = path.read_text()
+
+    return files
