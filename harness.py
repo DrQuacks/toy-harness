@@ -1,5 +1,5 @@
 from pathlib import Path
-
+import time
 from model_client import ask_model
 from runner import run_command
 from workspace import create_workspace, read_workspace_files
@@ -68,8 +68,8 @@ def save_attempt(workspace_dir: Path, attempt: int, content: str) -> None:
 
 
 def main() -> None:
-    task_dir = Path("tasks/hello-world")
-    workspace_dir = Path("workspace/hello-world")
+    task_dir = Path("tasks/task1")
+    workspace_dir = Path("workspace/task1")
 
     create_workspace(task_dir, workspace_dir)
 
@@ -79,14 +79,27 @@ def main() -> None:
     for attempt in range(1, 6):
         print(f"\n=== ATTEMPT {attempt} ===")
 
+        print("Reading workspace files...")
         files = read_workspace_files(workspace_dir)
+
+        print("Building prompt...")
         prompt = build_prompt(task_prompt, files, last_error)
 
+        print(f"Prompt size: {len(prompt)} characters")
+
+        print("Asking model...")
+        start = time.time()
         raw_model_output = ask_model(prompt)
+        elapsed = time.time() - start
+        print(f"Model responded in {elapsed:.2f}s")
+
+        print("Cleaning model output...")
         new_main_py = clean_model_output(raw_model_output)
 
+        print("Saving attempt...")
         save_attempt(workspace_dir, attempt, new_main_py)
 
+        print("Writing main.py...")
         target_file = workspace_dir / "main.py"
         target_file.write_text(new_main_py)
 
@@ -94,7 +107,10 @@ def main() -> None:
         print(new_main_py)
 
         print("\n=== RUNNING VALIDATION ===")
+        start = time.time()
         result = run_command(["bash", "run.sh"], cwd=workspace_dir)
+        elapsed = time.time() - start
+        print(f"Validation finished in {elapsed:.2f}s")
 
         if result.ok:
             print("✅ Passed!")
