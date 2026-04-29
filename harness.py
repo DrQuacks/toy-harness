@@ -1,6 +1,6 @@
 from pathlib import Path
 import time
-from model_client import ask_model
+from model_client import ask_model, ask_model_stream
 from runner import run_command
 from workspace import create_workspace, read_workspace_files
 
@@ -89,7 +89,16 @@ def main() -> None:
 
         print("Asking model...")
         start = time.time()
-        raw_model_output = ask_model(prompt)
+        # raw_model_output = ask_model(prompt)
+        chunks = []
+
+        for chunk in ask_model_stream(prompt):
+            print(chunk, end="", flush=True)
+            chunks.append(chunk)
+
+        print()
+
+        raw_model_output = "".join(chunks)
         elapsed = time.time() - start
         print(f"Model responded in {elapsed:.2f}s")
 
