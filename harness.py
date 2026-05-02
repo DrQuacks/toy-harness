@@ -59,12 +59,12 @@ def clean_model_output(output: str) -> str:
     return output + "\n"
 
 
-def save_attempt(workspace_dir: Path, attempt: int, content: str) -> None:
+def save_artifact(workspace_dir: Path, filename: str, content: str) -> None:
     attempts_dir = workspace_dir / ".attempts"
     attempts_dir.mkdir(exist_ok=True)
 
-    attempt_file = attempts_dir / f"attempt_{attempt}_main.py"
-    attempt_file.write_text(content)
+    output_file = attempts_dir / filename
+    output_file.write_text(content)
 
 
 def main() -> None:
@@ -84,6 +84,7 @@ def main() -> None:
 
         print("Building prompt...")
         prompt = build_prompt(task_prompt, files, last_error)
+        save_artifact(workspace_dir, f"attempt_{attempt}_prompt.txt", prompt)
 
         print(f"Prompt size: {len(prompt)} characters")
 
@@ -99,6 +100,7 @@ def main() -> None:
         print()
 
         raw_model_output = "".join(chunks)
+        save_artifact(workspace_dir, f"attempt_{attempt}_model_output.txt", raw_model_output)
         elapsed = time.time() - start
         print(f"Model responded in {elapsed:.2f}s")
 
@@ -106,7 +108,7 @@ def main() -> None:
         new_main_py = clean_model_output(raw_model_output)
 
         print("Saving attempt...")
-        save_attempt(workspace_dir, attempt, new_main_py)
+        save_artifact(workspace_dir, f"attempt_{attempt}_main.py", new_main_py)
 
         print("Writing main.py...")
         target_file = workspace_dir / "main.py"
@@ -120,6 +122,15 @@ def main() -> None:
         result = run_command(["bash", "run.sh"], cwd=workspace_dir)
         elapsed = time.time() - start
         print(f"Validation finished in {elapsed:.2f}s")
+
+        validation_log = (
+            f"Passed: {result.ok}\n"
+            f"Exit code: {result.exit_code}\n\n"
+            f"STDOUT:\n{result.stdout}\n\n"
+            f"STDERR:\n{result.stderr}\n"
+        )
+
+        save_artifact(workspace_dir, f"attempt_{attempt}_validation.txt", validation_log)
 
         if result.ok:
             print("✅ Passed!")
