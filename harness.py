@@ -1,5 +1,7 @@
 from pathlib import Path
 import time
+import json
+import re
 from model_client import ask_model, ask_model_stream
 from runner import run_command
 from workspace import create_workspace, read_workspace_files
@@ -35,28 +37,55 @@ def build_prompt(
         "Current files:\n"
         f"{chr(10).join(file_sections)}\n"
         f"{error_section}\n\n"
-        "Rewrite the file main.py so the task passes.\n"
-        "Return ONLY the full contents of main.py.\n"
+        "Return a JSON object describing the file edits needed to make the task pass.\n"
+        "Use this exact format:\n"
+        '{ "edits": [ { "path": "main.py", "content": "full file contents here" } ] }\n'
+        "Return ONLY valid JSON.\n"
         "Do not include markdown fences.\n"
         "Do not explain your answer.\n"
     )
 
 
-def clean_model_output(output: str) -> str:
+# def clean_model_output(output: str) -> str:
+#     output = output.strip()
+
+#     if output.startswith("```"):
+#         lines = output.splitlines()
+
+#         if lines and lines[0].startswith("```"):
+#             lines = lines[1:]
+
+#         if lines and lines[-1].startswith("```"):
+#             lines = lines[:-1]
+
+#         output = "\n".join(lines).strip()
+
+#     return output + "\n"
+
+def extract_json_object(output: str) -> dict:
     output = output.strip()
 
     if output.startswith("```"):
-        lines = output.splitlines()
+        output = re.sub(r"^```(?:json)?\s*", "", output)
+        output = re.sub(r"\s*```$", "", output)
 
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
+    start = output.find("{")
+    end = output.rfind("}")
 
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
+    if start == -1 or end == -1:
+        raise ValueError("Model output did not contain a JSON object.")
 
-        output = "\n".join(lines).strip()
+    json_text = output[start : end + 1]
+    return json.loads(json_text)
 
-    return output + "\n"
+def apply_edits(workspace_dir: Path, edits: list[dict]) -> None:
+    for edit in edits:
+        path = edit["path"]
+        content = edit["content"]
+
+        target_path = workspace_dir / path
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_text(content)
 
 
 def save_artifact(workspace_dir: Path, filename: str, content: str) -> None:
@@ -104,18 +133,33 @@ def main() -> None:
         elapsed = time.time() - start
         print(f"Model responded in {elapsed:.2f}s")
 
-        print("Cleaning model output...")
-        new_main_py = clean_model_output(raw_model_output)
+        print("Parsing model edit JSON...")
+        edit_plan = extract_json_object(raw_model_output)
 
-        print("Saving attempt...")
-        save_artifact(workspace_dir, f"attempt_{attempt}_main.py", new_main_py)
+        save_artifact(
+            workspace_dir,
+            f"attempt_{attempt}_edit_plan.json",
+            json.dumps(edit_plan, indent=2),
+        )
 
-        print("Writing main.py...")
-        target_file = workspace_dir / "main.py"
-        target_file.write_text(new_main_py)
+        edits = edit_plan.get("edits", [])
 
-        print("\n=== MODEL WROTE main.py ===")
-        print(new_main_py)
+        if not edits:
+            raise ValueError("Model returned no edits.")
+
+        print("Applying edits...")
+        for edit in edits:
+            print(f"- {edit['path']}")
+
+        apply_edits(workspace_dir, edits)
+
+        print("\n=== MODEL EDIT PLAN ===")
+        print(json.dumps(edit_plan, indent=2))
+
+        print("\n=== MODEL FILE OUTPUTS ===")
+        for edit in edits:
+            print(f"\n--- FILE: {edit['path']} ---")
+            print(edit["content"])
 
         print("\n=== RUNNING VALIDATION ===")
         start = time.time()
