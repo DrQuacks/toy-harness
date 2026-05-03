@@ -1,6 +1,7 @@
 import argparse
 import json
 from pathlib import Path
+import os
 
 
 def slugify(name: str) -> str:
@@ -39,6 +40,17 @@ def create_task(task_name: str) -> None:
         "# Replace this with your validation command.\n"
         "python main.py\n"
     )
+
+    run_sh_path = task_dir / "run.sh"
+
+    run_sh_path.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -e\n\n"
+        "# Replace this with your validation command.\n"
+        "python main.py\n"
+    )
+
+    os.chmod(run_sh_path, 0o755)
 
     (initial_dir / "main.py").write_text(
         'print("TODO: implement task")\n'
