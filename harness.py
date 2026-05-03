@@ -78,12 +78,21 @@ def extract_json_object(output: str) -> dict:
     json_text = output[start : end + 1]
     return json.loads(json_text)
 
+def resolve_safe_path(workspace_dir: Path, relative_path: str) -> Path:
+    target_path = (workspace_dir / relative_path).resolve()
+    workspace_root = workspace_dir.resolve()
+
+    if not target_path.is_relative_to(workspace_root):
+        raise ValueError(f"Unsafe edit path outside workspace: {relative_path}")
+
+    return target_path
+
 def apply_edits(workspace_dir: Path, edits: list[dict]) -> None:
     for edit in edits:
         path = edit["path"]
         content = edit["content"]
 
-        target_path = workspace_dir / path
+        target_path = resolve_safe_path(workspace_dir, path)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         target_path.write_text(content)
 
