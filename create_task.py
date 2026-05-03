@@ -1,15 +1,15 @@
 import argparse
 import json
-from pathlib import Path
 import os
+from pathlib import Path
 
 
 def slugify(name: str) -> str:
     return name.strip().lower().replace(" ", "-")
 
 
-def create_task(task_name: str) -> None:
-    task_slug = slugify(task_name)
+def create_task(args: argparse.Namespace) -> None:
+    task_slug = args.slug or slugify(args.name)
     task_dir = Path("tasks") / task_slug
 
     if task_dir.exists():
@@ -20,56 +20,95 @@ def create_task(task_name: str) -> None:
 
     task_config = {
         "prompt_file": "prompt.txt",
-        "validation_command": ["bash", "run.sh"],
-        "editable_paths": ["main.py"],
-        "max_attempts": 5,
-        "timeout_seconds": 10,
+        "validation_command": args.validation_command,
+        "editable_paths": args.editable,
+        "max_attempts": args.max_attempts,
+        "timeout_seconds": args.timeout_seconds,
     }
 
     (task_dir / "task.json").write_text(
         json.dumps(task_config, indent=2) + "\n"
     )
 
-    (task_dir / "prompt.txt").write_text(
-        "Describe what the model should change.\n"
-    )
-
-    (task_dir / "run.sh").write_text(
-        "#!/usr/bin/env bash\n"
-        "set -e\n\n"
-        "# Replace this with your validation command.\n"
-        "python main.py\n"
-    )
+    (task_dir / "prompt.txt").write_text(args.prompt + "\n")
 
     run_sh_path = task_dir / "run.sh"
-
     run_sh_path.write_text(
         "#!/usr/bin/env bash\n"
         "set -e\n\n"
-        "# Replace this with your validation command.\n"
-        "python main.py\n"
+        "# Validation command generated from CLI args.\n"
+        f"{' '.join(args.validation_command)}\n"
     )
-
     os.chmod(run_sh_path, 0o755)
 
-    (initial_dir / "main.py").write_text(
-        'print("TODO: implement task")\n'
-    )
+    initial_file_path = initial_dir / args.initial_file
+    initial_file_path.parent.mkdir(parents=True, exist_ok=True)
+    initial_file_path.write_text(args.initial_content + "\n")
 
     print(f"Created task: {task_dir}")
-    print("Next steps:")
-    print(f"  1. Edit {task_dir / 'prompt.txt'}")
-    print(f"  2. Edit {task_dir / 'initial' / 'main.py'}")
-    print(f"  3. Edit {task_dir / 'run.sh'}")
-    print(f"  4. Run: chmod +x {task_dir / 'run.sh'}")
+    print()
+    print("Generated:")
+    print(f"  {task_dir / 'task.json'}")
+    print(f"  {task_dir / 'prompt.txt'}")
+    print(f"  {task_dir / 'run.sh'}")
+    print(f"  {initial_file_path}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("name", help="Name of the task to create")
+    parser.add_argument("name", help="Human-readable task name")
+
+    parser.add_argument(
+        "--slug",
+        help="Optional folder name override",
+    )
+
+    parser.add_argument(
+        "--editable",
+        nargs="+",
+        default=["main.py"],
+        help="Editable file paths or directories",
+    )
+
+    parser.add_argument(
+        "--validation-command",
+        nargs="+",
+        default=["bash", "run.sh"],
+        help="Command used by the harness to validate the task",
+    )
+
+    parser.add_argument(
+        "--prompt",
+        default="Describe what the model should change.",
+        help="Initial task prompt",
+    )
+
+    parser.add_argument(
+        "--initial-file",
+        default="main.py",
+        help="Initial file path inside initial/",
+    )
+
+    parser.add_argument(
+        "--initial-content",
+        default='print("TODO: implement task")',
+        help="Initial contents for the generated file",
+    )
+
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=5,
+    )
+
+    parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=10,
+    )
 
     args = parser.parse_args()
-    create_task(args.name)
+    create_task(args)
 
 
 if __name__ == "__main__":
