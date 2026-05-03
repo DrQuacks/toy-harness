@@ -10,6 +10,7 @@ from workspace import create_workspace, read_workspace_files
 def build_prompt(
     task_prompt: str,
     files: dict[str, str],
+    editable_paths: list[str],
     last_error: str | None = None,
 ) -> str:
     file_sections = []
@@ -38,6 +39,8 @@ def build_prompt(
         f"{chr(10).join(file_sections)}\n"
         f"{error_section}\n\n"
         "Return a JSON object describing the file edits needed to make the task pass.\n"
+        "Only edit these paths:\n"
+        f"{json.dumps(editable_paths, indent=2)}\n\n"
         "Use this exact format:\n"
         '{ "edits": [ { "path": "main.py", "content": "full file contents here" } ] }\n'
         "Return ONLY valid JSON.\n"
@@ -45,22 +48,14 @@ def build_prompt(
         "Do not explain your answer.\n"
     )
 
+def load_task_config(task_dir: Path) -> dict:
+    config_path = task_dir / "task.json"
 
-# def clean_model_output(output: str) -> str:
-#     output = output.strip()
+    if not config_path.exists():
+        raise FileNotFoundError(f"Missing task config: {config_path}")
 
-#     if output.startswith("```"):
-#         lines = output.splitlines()
+    return json.loads(config_path.read_text())
 
-#         if lines and lines[0].startswith("```"):
-#             lines = lines[1:]
-
-#         if lines and lines[-1].startswith("```"):
-#             lines = lines[:-1]
-
-#         output = "\n".join(lines).strip()
-
-#     return output + "\n"
 
 def extract_json_object(output: str) -> dict:
     output = output.strip()
@@ -87,10 +82,27 @@ def resolve_safe_path(workspace_dir: Path, relative_path: str) -> Path:
 
     return target_path
 
-def apply_edits(workspace_dir: Path, edits: list[dict]) -> None:
+def is_allowed_edit_path(path: str, editable_paths: list[str]) -> bool:
+    normalized = path.strip("/")
+
+    for allowed in editable_paths:
+        allowed = allowed.strip("/")
+
+        if normalized == allowed:
+            return True
+
+        if allowed.endswith("/") and normalized.startswith(allowed):
+            return True
+
+    return False
+
+def apply_edits(workspace_dir: Path, edits: list[dict], editable_paths: list[str]) -> None:
     for edit in edits:
         path = edit["path"]
         content = edit["content"]
+
+        if not is_allowed_edit_path(path, editable_paths):
+            raise ValueError(f"Model tried to edit disallowed path: {path}")
 
         target_path = resolve_safe_path(workspace_dir, path)
         target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -109,19 +121,27 @@ def main() -> None:
     task_dir = Path("tasks/task1")
     workspace_dir = Path("workspace/task1")
 
+    config = load_task_config(task_dir)
+
+    prompt_file = config["prompt_file"]
+    validation_command = config["validation_command"]
+    editable_paths = config["editable_paths"]
+    max_attempts = config.get("max_attempts", 5)
+    timeout_seconds = config.get("timeout_seconds", 10)
+
     create_workspace(task_dir, workspace_dir)
 
-    task_prompt = (task_dir / "prompt.txt").read_text()
+    task_prompt = (task_dir / prompt_file).read_text()
     last_error = None
 
-    for attempt in range(1, 6):
+    for attempt in range(1, max_attempts + 1):
         print(f"\n=== ATTEMPT {attempt} ===")
 
         print("Reading workspace files...")
         files = read_workspace_files(workspace_dir)
 
         print("Building prompt...")
-        prompt = build_prompt(task_prompt, files, last_error)
+        prompt = build_prompt(task_prompt, files, editable_paths, last_error)
         save_artifact(workspace_dir, f"attempt_{attempt}_prompt.txt", prompt)
 
         print(f"Prompt size: {len(prompt)} characters")
@@ -160,7 +180,7 @@ def main() -> None:
         for edit in edits:
             print(f"- {edit['path']}")
 
-        apply_edits(workspace_dir, edits)
+        apply_edits(workspace_dir, edits, editable_paths)
 
         print("\n=== MODEL EDIT PLAN ===")
         print(json.dumps(edit_plan, indent=2))
@@ -172,7 +192,11 @@ def main() -> None:
 
         print("\n=== RUNNING VALIDATION ===")
         start = time.time()
-        result = run_command(["bash", "run.sh"], cwd=workspace_dir)
+        result = run_command(
+            validation_command,
+            cwd=workspace_dir,
+            timeout_seconds=timeout_seconds,
+        )
         elapsed = time.time() - start
         print(f"Validation finished in {elapsed:.2f}s")
 

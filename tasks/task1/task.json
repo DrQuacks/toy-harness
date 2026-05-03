@@ -1,0 +1,7 @@
+{
+  "prompt_file": "prompt.txt",
+  "validation_command": ["bash", "run.sh"],
+  "editable_paths": ["main.py"],
+  "max_attempts": 5,
+  "timeout_seconds": 10
+}
