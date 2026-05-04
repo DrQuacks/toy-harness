@@ -137,6 +137,10 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+def save_run_summary(workspace_dir: Path, summary: dict) -> None:
+    summary_path = workspace_dir / "run_summary.json"
+    summary_path.write_text(json.dumps(summary, indent=2) + "\n")
+
 
 def main() -> None:
     args = parse_args()
@@ -157,6 +161,8 @@ def main() -> None:
 
     task_prompt = (task_dir / prompt_file).read_text()
     last_error = None
+
+    run_start = time.time()
 
     for attempt in range(1, max_attempts + 1):
         print(f"\n=== ATTEMPT {attempt} ===")
@@ -234,6 +240,19 @@ def main() -> None:
         save_artifact(workspace_dir, f"attempt_{attempt}_validation.txt", validation_log)
 
         if result.ok:
+            total_duration = time.time() - run_start
+
+            save_run_summary(
+                workspace_dir,
+                {
+                    "task": args.task,
+                    "model": model,
+                    "passed": True,
+                    "attempts_used": attempt,
+                    "total_duration_seconds": round(total_duration, 2),
+                    "validation_command": validation_command,
+                },
+            )
             print("✅ Passed!")
             return
 
@@ -247,6 +266,20 @@ def main() -> None:
         print(combined_output)
 
         last_error = combined_output
+
+    total_duration = time.time() - run_start
+
+    save_run_summary(
+        workspace_dir,
+        {
+            "task": args.task,
+            "model": model,
+            "passed": False,
+            "attempts_used": max_attempts,
+            "total_duration_seconds": round(total_duration, 2),
+            "validation_command": validation_command,
+        },
+    )
 
     print("Failed after max attempts.")
 
