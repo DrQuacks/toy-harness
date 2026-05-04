@@ -2,6 +2,7 @@ from pathlib import Path
 import time
 import json
 import re
+import argparse
 from model_client import ask_model, ask_model_stream
 from runner import run_command
 from workspace import create_workspace, read_workspace_files
@@ -116,10 +117,33 @@ def save_artifact(workspace_dir: Path, filename: str, content: str) -> None:
     output_file = attempts_dir / filename
     output_file.write_text(content)
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--task",
+        required=True,
+        help="Task folder name inside tasks/",
+    )
+    parser.add_argument(
+        "--model",
+        default="qwen2.5-coder:7b",
+        help="Ollama model name",
+    )
+    parser.add_argument(
+        "--workspace-root",
+        default="workspace",
+        help="Directory where task workspaces are created",
+    )
+
+    return parser.parse_args()
+
 
 def main() -> None:
-    task_dir = Path("tasks/task1")
-    workspace_dir = Path("workspace/task1")
+    args = parse_args()
+
+    task_dir = Path("tasks") / args.task
+    workspace_dir = Path(args.workspace_root) / args.task
+    model = args.model
 
     config = load_task_config(task_dir)
 
@@ -151,7 +175,7 @@ def main() -> None:
         # raw_model_output = ask_model(prompt)
         chunks = []
 
-        for chunk in ask_model_stream(prompt):
+        for chunk in ask_model_stream(prompt,model=model):
             print(chunk, end="", flush=True)
             chunks.append(chunk)
 
