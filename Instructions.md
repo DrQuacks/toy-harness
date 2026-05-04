@@ -1,12 +1,6 @@
-# toy-harness
+# Instructions
 
-A minimal code harness that asks a local LLM to edit files until a task-specific validation command passes.
-
-## User Instructions
-
-This section is intentionally mirrored in `Instructions.md`.
-
-### 1) Setup
+## 1) Setup
 
 Requirements:
 
@@ -23,7 +17,7 @@ pip install requests
 ollama pull qwen2.5-coder:7b
 ```
 
-### 2) Create a new task
+## 2) Create a new task
 
 Basic:
 
@@ -52,7 +46,7 @@ This generates `tasks/<slug>/` with:
 - `run.sh`
 - `initial/<initial-file>`
 
-### 3) Run the harness on a task
+## 3) Run the harness on a task
 
 Use `--task` (required):
 
@@ -72,7 +66,7 @@ Run with a custom workspace root:
 python harness.py --task task1 --workspace-root workspace
 ```
 
-### 4) What happens during a run
+## 4) What happens during a run
 
 For each attempt, the harness will:
 
@@ -83,7 +77,7 @@ For each attempt, the harness will:
 5. Apply only allowed edits
 6. Run validation and stop on success, or retry until `max_attempts`
 
-### 5) Inspect attempt artifacts
+## 5) Inspect attempt artifacts
 
 Each run writes artifacts to:
 
@@ -96,7 +90,7 @@ Typical files:
 - `attempt_1_edit_plan.json`
 - `attempt_1_validation.txt`
 
-### 6) Command reference
+## 6) Command reference
 
 `create_task.py`:
 
@@ -116,27 +110,8 @@ Typical files:
 - `--model`: Model name sent to Ollama (default `qwen2.5-coder:7b`)
 - `--workspace-root`: Where per-task workspaces are created (default `workspace`)
 
-### 7) Quick troubleshooting
+## 7) Quick troubleshooting
 
 - If `harness.py` fails immediately, confirm the task exists: `tasks/<task>/task.json`.
 - If model requests fail, confirm Ollama is running and the model is pulled.
 - If validation always fails, run the validation command manually in `workspace/<task>/`.
-
-## What the Repository Contains
-
-```
-toy-harness/
-├── create_task.py      # CLI for creating task scaffolds
-├── harness.py          # Main solve-and-validate loop
-├── model_client.py     # Ollama API client calls
-├── runner.py           # Safe subprocess execution helper
-├── workspace.py        # Workspace creation and file loading
-└── tasks/              # Task definitions
-```
-
-## Harness Design Notes
-
-- The model is constrained by `editable_paths` from `task.json`.
-- Edits are path-checked to stay inside the workspace directory.
-- Validation uses the command from `task.json` with per-task timeout.
-- Failed attempts feed structured output back into the next prompt.
