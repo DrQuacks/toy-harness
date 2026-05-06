@@ -174,8 +174,8 @@ def main() -> None:
         print(f"\n=== ATTEMPT {attempt} ===")
 
         print("Reading workspace files...")
-        files = read_workspace_files(workspace_dir)
-
+        included_paths = editable_paths + read_only_paths
+        files = read_workspace_files(workspace_dir, included_paths)
         print("Building prompt...")
         prompt = build_prompt(task_prompt, files, editable_paths, read_only_paths, last_error)
         save_artifact(workspace_dir, f"attempt_{attempt}_prompt.txt", prompt)
