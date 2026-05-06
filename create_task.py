@@ -22,6 +22,7 @@ def create_task(args: argparse.Namespace) -> None:
         "prompt_file": "prompt.txt",
         "validation_command": args.validation_command,
         "editable_paths": args.editable,
+        "read_only_paths": args.read_only,
         "max_attempts": args.max_attempts,
         "timeout_seconds": args.timeout_seconds,
     }
@@ -105,6 +106,13 @@ def main() -> None:
         "--timeout-seconds",
         type=int,
         default=10,
+    )
+
+    parser.add_argument(
+        "--read-only",
+        nargs="+",
+        default=[],
+        help="Paths that the model can read but not edit",
     )
 
     args = parser.parse_args()

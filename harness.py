@@ -12,6 +12,7 @@ def build_prompt(
     task_prompt: str,
     files: dict[str, str],
     editable_paths: list[str],
+    read_only_paths: list[str],
     last_error: str | None = None,
 ) -> str:
     file_sections = []
@@ -40,8 +41,12 @@ def build_prompt(
         f"{chr(10).join(file_sections)}\n"
         f"{error_section}\n\n"
         "Return a JSON object describing the file edits needed to make the task pass.\n"
-        "Only edit these paths:\n"
+        "Editable paths:\n"
         f"{json.dumps(editable_paths, indent=2)}\n\n"
+        "Read-only paths (DO NOT EDIT):\n"
+        f"{json.dumps(read_only_paths, indent=2)}\n\n"
+        "You may read all files, but you may only modify files listed in editable_paths.\n"
+        "Never modify read_only_paths.\n"
         "Use this exact format:\n"
         '{ "edits": [ { "path": "main.py", "content": "full file contents here" } ] }\n'
         "Return ONLY valid JSON.\n"
@@ -154,6 +159,7 @@ def main() -> None:
     prompt_file = config["prompt_file"]
     validation_command = config["validation_command"]
     editable_paths = config["editable_paths"]
+    read_only_paths = config.get("read_only_paths", [])
     max_attempts = config.get("max_attempts", 5)
     timeout_seconds = config.get("timeout_seconds", 10)
 
@@ -171,7 +177,7 @@ def main() -> None:
         files = read_workspace_files(workspace_dir)
 
         print("Building prompt...")
-        prompt = build_prompt(task_prompt, files, editable_paths, last_error)
+        prompt = build_prompt(task_prompt, files, editable_paths, read_only_paths, last_error)
         save_artifact(workspace_dir, f"attempt_{attempt}_prompt.txt", prompt)
 
         print(f"Prompt size: {len(prompt)} characters")
