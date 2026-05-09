@@ -35,7 +35,7 @@ def ask_model_stream(prompt: str, model: str = "qwen2.5-coder:7b"):
             ],
         },
         stream=True,
-        timeout=120,
+        timeout=(10,None),
     )
 
     response.raise_for_status()

@@ -37,7 +37,7 @@ def create_task(args: argparse.Namespace) -> None:
     run_sh_path.write_text(
         "#!/usr/bin/env bash\n"
         "set -e\n\n"
-        "# Validation command generated from CLI args.\n"
+        "# Optional validation script. The harness uses task.json by default.\n"
         f"{' '.join(args.validation_command)}\n"
     )
     os.chmod(run_sh_path, 0o755)
@@ -74,7 +74,7 @@ def main() -> None:
     parser.add_argument(
         "--validation-command",
         nargs="+",
-        default=["bash", "run.sh"],
+        default=["python", "-m", "pytest"],
         help="Command used by the harness to validate the task",
     )
 
