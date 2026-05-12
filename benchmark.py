@@ -45,6 +45,19 @@ def save_benchmark_results(results: list[dict], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(results, indent=2) + "\n")
 
+def verify_model_exists(model: str) -> None:
+    completed = subprocess.run(
+        ["ollama", "list"],
+        text=True,
+        capture_output=True,
+    )
+
+    if model not in completed.stdout:
+        raise ValueError(
+            f"Model not installed locally: {model}\n"
+            f"Install it with: ollama pull {model}"
+        )
+
 
 def print_results_table(results: list[dict]) -> None:
     print("\n=== Benchmark Results ===")
@@ -101,6 +114,8 @@ def main() -> None:
             Path(args.workspace_root) / "benchmarks" / safe_model_name
         )
 
+        verify_model_exists(model)
+        
         result = run_harness(
             task=args.task,
             model=model,
