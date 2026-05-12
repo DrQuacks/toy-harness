@@ -62,6 +62,32 @@ def load_task_config(task_dir: Path) -> dict:
 
     return json.loads(config_path.read_text())
 
+def validate_edit_plan(edit_plan: dict) -> list[dict]:
+    if not isinstance(edit_plan, dict):
+        raise ValueError("Edit plan must be a JSON object.")
+
+    edits = edit_plan.get("edits")
+
+    if not isinstance(edits, list):
+        raise ValueError('Edit plan must contain an "edits" list.')
+
+    if not edits:
+        raise ValueError('Edit plan "edits" list cannot be empty.')
+
+    for index, edit in enumerate(edits):
+        if not isinstance(edit, dict):
+            raise ValueError(f"Edit at index {index} must be an object.")
+
+        path = edit.get("path")
+        content = edit.get("content")
+
+        if not isinstance(path, str):
+            raise ValueError(f'Edit at index {index} must have string "path".')
+
+        if not isinstance(content, str):
+            raise ValueError(f'Edit at index {index} must have string "content".')
+
+    return edits
 
 def extract_json_object(output: str) -> dict:
     output = output.strip()
@@ -229,10 +255,28 @@ def main() -> None:
             json.dumps(edit_plan, indent=2),
         )
 
-        edits = edit_plan.get("edits", [])
+        try:
+            edits = validate_edit_plan(edit_plan)
 
-        if not edits:
-            raise ValueError("Model returned no edits.")
+        except Exception as error:
+            schema_error = f"Edit plan schema failed: {str(error)}"
+
+            print(f"❌ {schema_error}")
+
+            save_artifact(
+                workspace_dir,
+                f"attempt_{attempt}_schema_error.txt",
+                schema_error,
+            )
+
+            last_error = (
+                "Your previous response had the wrong JSON schema.\n"
+                f"{schema_error}\n\n"
+                "You must return ONLY valid JSON in this exact format:\n"
+                '{ "edits": [ { "path": "main.py", "content": "..." } ] }'
+            )
+
+            continue
 
         print("Applying edits...")
         for edit in edits:
