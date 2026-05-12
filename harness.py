@@ -199,7 +199,29 @@ def main() -> None:
         print(f"Model responded in {elapsed:.2f}s")
 
         print("Parsing model edit JSON...")
-        edit_plan = extract_json_object(raw_model_output)
+
+        try:
+            edit_plan = extract_json_object(raw_model_output)
+
+        except Exception as error:
+            parse_error = f"JSON parse failed: {str(error)}"
+
+            print(f"❌ {parse_error}")
+
+            save_artifact(
+                workspace_dir,
+                f"attempt_{attempt}_parse_error.txt",
+                parse_error,
+            )
+
+            last_error = (
+                "Your previous response was invalid.\n"
+                f"{parse_error}\n\n"
+                "You must return ONLY valid JSON in this format:\n"
+                '{ "edits": [ { "path": "main.py", "content": "..." } ] }'
+            )
+
+            continue
 
         save_artifact(
             workspace_dir,

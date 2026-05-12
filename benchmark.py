@@ -18,11 +18,7 @@ def run_harness(task: str, model: str, workspace_root: str) -> dict:
 
     print(f"\n=== Running {task} with {model} ===")
 
-    completed = subprocess.run(
-        command,
-        text=True,
-        capture_output=True,
-    )
+    completed = subprocess.run(command)
 
     workspace_dir = Path(workspace_root) / task
     summary_path = workspace_dir / "run_summary.json"
@@ -99,10 +95,16 @@ def main() -> None:
     results = []
 
     for model in args.models:
+        safe_model_name = model.replace(":", "_").replace("/", "_")
+
+        model_workspace_root = str(
+            Path(args.workspace_root) / "benchmarks" / safe_model_name
+        )
+
         result = run_harness(
             task=args.task,
             model=model,
-            workspace_root=args.workspace_root,
+            workspace_root=model_workspace_root,
         )
         results.append(result)
 

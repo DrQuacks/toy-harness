@@ -2,19 +2,22 @@
   {
     "task": "add-numbers",
     "model": "qwen2.5-coder:3b",
-    "passed": false,
-    "attempts_used": null,
-    "total_duration_seconds": null,
-    "error": "Missing run_summary.json",
-    "stdout": "\n=== ATTEMPT 1 ===\nReading workspace files...\nBuilding prompt...\nPrompt size: 992 characters\nAsking model...\n",
-    "stderr": "Traceback (most recent call last):\n  File \"/Users/Kellar/Develop/Projects/toy-harness/harness.py\", line 294, in <module>\n    main()\n  File \"/Users/Kellar/Develop/Projects/toy-harness/harness.py\", line 190, in main\n    for chunk in ask_model_stream(prompt,model=model):\n  File \"/Users/Kellar/Develop/Projects/toy-harness/model_client.py\", line 41, in ask_model_stream\n    response.raise_for_status()\n  File \"/Users/Kellar/Develop/Projects/toy-harness/.venv/lib/python3.11/site-packages/requests/models.py\", line 1028, in raise_for_status\n    raise HTTPError(http_error_msg, response=self)\nrequests.exceptions.HTTPError: 404 Client Error: Not Found for url: http://localhost:11434/api/chat\n"
+    "passed": true,
+    "attempts_used": 1,
+    "total_duration_seconds": 93.05,
+    "validation_command": [
+      "python",
+      "-m",
+      "pytest"
+    ],
+    "harness_exit_code": 0
   },
   {
     "task": "add-numbers",
     "model": "qwen2.5-coder:7b",
     "passed": true,
     "attempts_used": 1,
-    "total_duration_seconds": 171.97,
+    "total_duration_seconds": 238.46,
     "validation_command": [
       "python",
       "-m",
