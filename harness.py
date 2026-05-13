@@ -168,6 +168,20 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+def edit_changes_file(workspace_dir: Path, edit: dict) -> bool:
+    target_path = resolve_safe_path(workspace_dir, edit["path"])
+
+    if not target_path.exists():
+        return True
+
+    current_content = target_path.read_text()
+    return current_content != edit["content"]
+
+
+def ensure_edits_change_something(workspace_dir: Path, edits: list[dict]) -> None:
+    if not any(edit_changes_file(workspace_dir, edit) for edit in edits):
+        raise ValueError("Model returned edits, but none changed any files.")
+
 def save_run_summary(workspace_dir: Path, summary: dict) -> None:
     summary_path = workspace_dir / "run_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
@@ -274,6 +288,28 @@ def main() -> None:
                 f"{schema_error}\n\n"
                 "You must return ONLY valid JSON in this exact format:\n"
                 '{ "edits": [ { "path": "main.py", "content": "..." } ] }'
+            )
+
+            continue
+
+        try:
+            ensure_edits_change_something(workspace_dir, edits)
+
+        except Exception as error:
+            no_op_error = f"No-op edit failed: {str(error)}"
+
+            print(f"❌ {no_op_error}")
+
+            save_artifact(
+                workspace_dir,
+                f"attempt_{attempt}_no_op_error.txt",
+                no_op_error,
+            )
+
+            last_error = (
+                "Your previous edit did not change any files.\n"
+                f"{no_op_error}\n\n"
+                "Return a JSON edit plan that actually modifies the implementation."
             )
 
             continue
