@@ -3,6 +3,7 @@ import time
 import json
 import re
 import argparse
+import difflib
 from model_client import ask_model, ask_model_stream
 from runner import run_command
 from workspace import create_workspace, read_workspace_files
@@ -186,6 +187,38 @@ def save_run_summary(workspace_dir: Path, summary: dict) -> None:
     summary_path = workspace_dir / "run_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
 
+def build_diff_for_edit(workspace_dir: Path, edit: dict) -> str:
+    path = edit["path"]
+    target_path = resolve_safe_path(workspace_dir, path)
+
+    if target_path.exists():
+        old_content = target_path.read_text()
+    else:
+        old_content = ""
+
+    new_content = edit["content"]
+
+    diff_lines = difflib.unified_diff(
+        old_content.splitlines(keepends=True),
+        new_content.splitlines(keepends=True),
+        fromfile=f"before/{path}",
+        tofile=f"after/{path}",
+    )
+
+    return "".join(diff_lines)
+
+
+def build_diff_for_edits(workspace_dir: Path, edits: list[dict]) -> str:
+    diffs = []
+
+    for edit in edits:
+        diff = build_diff_for_edit(workspace_dir, edit)
+
+        if diff:
+            diffs.append(diff)
+
+    return "\n".join(diffs)
+
 
 def main() -> None:
     args = parse_args()
@@ -314,6 +347,18 @@ def main() -> None:
 
             continue
 
+        print("Building diff...")
+        diff_text = build_diff_for_edits(workspace_dir, edits)
+
+        save_artifact(
+            workspace_dir,
+            f"attempt_{attempt}_diff.patch",
+            diff_text,
+        )
+
+        print("\n=== MODEL DIFF ===")
+        print(diff_text)
+        
         print("Applying edits...")
         for edit in edits:
             print(f"- {edit['path']}")
