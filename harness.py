@@ -219,6 +219,17 @@ def build_diff_for_edits(workspace_dir: Path, edits: list[dict]) -> str:
 
     return "\n".join(diffs)
 
+def save_attempt_status(
+    workspace_dir: Path,
+    attempt: int,
+    status: dict,
+) -> None:
+    save_artifact(
+        workspace_dir,
+        f"attempt_{attempt}_status.json",
+        json.dumps(status, indent=2) + "\n",
+    )
+
 
 def main() -> None:
     args = parse_args()
@@ -281,6 +292,18 @@ def main() -> None:
 
             print(f"❌ {parse_error}")
 
+            save_attempt_status(
+                workspace_dir,
+                attempt,
+                {
+                    "attempt": attempt,
+                    "stage": "parse_json",
+                    "passed": False,
+                    "error_type": "parse_error",
+                    "message": parse_error,
+                },
+            )
+
             save_artifact(
                 workspace_dir,
                 f"attempt_{attempt}_parse_error.txt",
@@ -310,6 +333,18 @@ def main() -> None:
 
             print(f"❌ {schema_error}")
 
+            save_attempt_status(
+                workspace_dir,
+                attempt,
+                {
+                    "attempt": attempt,
+                    "stage": "validate_schema",
+                    "passed": False,
+                    "error_type": "schema_error",
+                    "message": schema_error,
+                },
+            )
+
             save_artifact(
                 workspace_dir,
                 f"attempt_{attempt}_schema_error.txt",
@@ -332,6 +367,18 @@ def main() -> None:
             no_op_error = f"No-op edit failed: {str(error)}"
 
             print(f"❌ {no_op_error}")
+
+            save_attempt_status(
+                workspace_dir,
+                attempt,
+                {
+                    "attempt": attempt,
+                    "stage": "check_no_op",
+                    "passed": False,
+                    "error_type": "no_op_error",
+                    "message": no_op_error,
+                },
+            )
 
             save_artifact(
                 workspace_dir,
@@ -358,7 +405,7 @@ def main() -> None:
 
         print("\n=== MODEL DIFF ===")
         print(diff_text)
-        
+
         print("Applying edits...")
         for edit in edits:
             print(f"- {edit['path']}")
