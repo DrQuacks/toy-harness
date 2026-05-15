@@ -1,0 +1,12 @@
+{
+  "prompt_file": "prompt.txt",
+  "validation_command": ["python", "-m", "pytest"],
+  "editable_paths": [
+    "sales_summary.py"
+  ],
+  "read_only_paths": [
+    "tests/test_sales_summary.py"
+  ],
+  "max_attempts": 5,
+  "timeout_seconds": 10
+}
