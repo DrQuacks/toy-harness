@@ -2,7 +2,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from model_client import ask_model
+from model_client import ask_model_stream
 
 
 def list_tasks() -> list[str]:
@@ -69,7 +69,19 @@ def parse_router_json(output: str) -> dict:
 
 def route_user_text(user_text: str, router_model: str) -> dict:
     prompt = build_router_prompt(user_text)
-    raw_output = ask_model(prompt, model=router_model)
+
+    print("Routing request through local model...")
+
+    chunks = []
+
+    for chunk in ask_model_stream(prompt, model=router_model):
+        print(chunk, end="", flush=True)
+        chunks.append(chunk)
+
+    print()
+
+    raw_output = "".join(chunks)
+
     return parse_router_json(raw_output)
 
 
