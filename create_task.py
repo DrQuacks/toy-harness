@@ -116,6 +116,8 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    if args.validation_command == ["pytest"]:
+        args.validation_command = ["python", "-m", "pytest"]
     create_task(args)
 
 
