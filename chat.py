@@ -1,8 +1,10 @@
 import json
 import subprocess
+import time
 from pathlib import Path
 
 from model_client import ask_model_stream
+from hardware import get_default_models
 
 
 def list_tasks() -> list[str]:
@@ -68,13 +70,25 @@ def parse_router_json(output: str) -> dict:
 
 
 def route_user_text(user_text: str, router_model: str) -> dict:
-    prompt = build_router_prompt(user_text)
+    total_start = time.time()
 
-    print("Routing request through local model...")
+    print("Building router prompt...")
+    prompt_start = time.time()
+    prompt = build_router_prompt(user_text)
+    print(f"Built prompt in {time.time() - prompt_start:.2f}s")
+    print(f"Router prompt size: {len(prompt)} characters")
+
+    print(f"Routing request through local model: {router_model}")
+    model_start = time.time()
 
     chunks = []
+    first_chunk_time = None
 
     for chunk in ask_model_stream(prompt, model=router_model):
+        if first_chunk_time is None:
+            first_chunk_time = time.time()
+            print(f"\nFirst token after {first_chunk_time - model_start:.2f}s")
+
         print(chunk, end="", flush=True)
         chunks.append(chunk)
 
@@ -82,7 +96,18 @@ def route_user_text(user_text: str, router_model: str) -> dict:
 
     raw_output = "".join(chunks)
 
-    return parse_router_json(raw_output)
+    model_elapsed = time.time() - model_start
+    print(f"Router model finished in {model_elapsed:.2f}s")
+    print(f"Router output size: {len(raw_output)} characters")
+
+    print("Parsing router JSON...")
+    parse_start = time.time()
+    command = parse_router_json(raw_output)
+    print(f"Parsed JSON in {time.time() - parse_start:.2f}s")
+
+    print(f"Total routing time: {time.time() - total_start:.2f}s")
+
+    return command
 
 
 def run_task(task: str, model: str) -> None:
@@ -130,7 +155,8 @@ def handle_command(user_text: str, router_model: str) -> None:
 
 
 def main() -> None:
-    router_model = "qwen2.5-coder:7b"
+    models = get_default_models()
+    router_model = models["router_model"]
 
     print("Toy Harness Chat")
     print("Examples:")
