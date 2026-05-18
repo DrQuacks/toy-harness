@@ -32,16 +32,22 @@ Available tasks:
 Available actions:
 1. run_task
 2. show_tasks
+3. create_task
 3. unknown
 
 Return ONLY valid JSON.
 
 Schema:
-{{
-  "action": "run_task" | "show_tasks" | "unknown",
+{
+  "action": "run_task" | "show_tasks" | "create_task" | "unknown",
   "task": string | null,
-  "model": string | null
-}}
+  "model": string | null,
+  "prompt": string | null,
+  "initial_file": string | null,
+  "initial_content": string | null,
+  "editable_paths": list[string] | null,
+  "read_only_paths": list[string] | null
+}
 
 Rules:
 - If the user asks to run, execute, try, or test a task, use action "run_task".
@@ -50,6 +56,11 @@ Rules:
 - If the user mentions 7b, use model "qwen2.5-coder:7b".
 - If no model is mentioned, use model "qwen2.5-coder:7b".
 - If the user asks what tasks exist, use action "show_tasks".
+- If the user asks to create, make, scaffold, or generate a new task, use action "create_task".
+- For create_task, "task" should be a short slug-like task name, e.g. "string-utils".
+- If no initial file is specified, use "main.py".
+- If no editable paths are specified, use the initial file.
+- If no read-only paths are specified, use [].
 - If you cannot determine the task, use action "unknown".
 
 User request:
@@ -138,6 +149,10 @@ def handle_command(user_text: str, router_model: str) -> None:
         for task_name in list_tasks():
             print(f"- {task_name}")
         return
+    
+    if action == "create_task":
+        create_task_from_command(command)
+        return
 
     if action == "run_task":
         if not task:
@@ -152,6 +167,37 @@ def handle_command(user_text: str, router_model: str) -> None:
         return
 
     print("I could not determine what to do.")
+
+def create_task_from_command(command: dict) -> None:
+    task = command.get("task")
+    prompt = command.get("prompt") or "Describe what the model should change."
+    initial_file = command.get("initial_file") or "main.py"
+    initial_content = command.get("initial_content") or 'print("TODO: implement task")'
+    editable_paths = command.get("editable_paths") or [initial_file]
+    read_only_paths = command.get("read_only_paths") or []
+
+    if not task:
+        print("No task name was provided.")
+        return
+
+    cli_command = [
+        "python",
+        "create_task.py",
+        task,
+        "--prompt",
+        prompt,
+        "--initial-file",
+        initial_file,
+        "--initial-content",
+        initial_content,
+        "--editable",
+        *editable_paths,
+    ]
+
+    if read_only_paths:
+        cli_command.extend(["--read-only", *read_only_paths])
+
+    subprocess.run(cli_command)
 
 
 def main() -> None:
