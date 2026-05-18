@@ -7,6 +7,7 @@ import difflib
 from model_client import ask_model, ask_model_stream
 from runner import run_command
 from workspace import create_workspace, read_workspace_files
+from hardware import get_default_models
 
 
 def build_prompt(
@@ -158,7 +159,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="qwen2.5-coder:7b",
+        default=None,
         help="Ollama model name",
     )
     parser.add_argument(
@@ -236,7 +237,8 @@ def main() -> None:
 
     task_dir = Path("tasks") / args.task
     workspace_dir = Path(args.workspace_root) / args.task
-    model = args.model
+    defaults = get_default_models()
+    model = args.model or defaults["coder_model"]
 
     config = load_task_config(task_dir)
 
