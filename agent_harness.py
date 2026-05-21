@@ -75,11 +75,16 @@ def run_tests(
 
 
 def build_prompt(
+    task_prompt: str,
     history: list[dict],
     editable_paths: list[str],
+    read_only_paths: list[str],
 ) -> str:
     return f"""
 You are an AI coding agent.
+
+Task:
+{task_prompt}
 
 You may use these actions:
 
@@ -90,6 +95,15 @@ You may use these actions:
 
 Editable paths:
 {json.dumps(editable_paths, indent=2)}
+
+Read-only paths:
+{json.dumps(read_only_paths, indent=2)}
+
+Rules:
+- You may read editable and read-only files.
+- You may only write editable files.
+- Use read_file before writing if you need to inspect code or tests.
+- Run tests after writing.
 
 Return ONLY valid JSON.
 
@@ -161,7 +175,12 @@ def main() -> None:
 
     create_workspace(task_dir, workspace_dir)
 
+    prompt_file = config["prompt_file"]
+    task_prompt = (task_dir / prompt_file).read_text()
+
     editable_paths = config["editable_paths"]
+    read_only_paths = config.get("read_only_paths", [])
+
     validation_command = config["validation_command"]
     timeout_seconds = config["timeout_seconds"]
 
@@ -171,8 +190,10 @@ def main() -> None:
         print(f"\n=== STEP {step + 1} ===")
 
         prompt = build_prompt(
+            task_prompt,
             history,
             editable_paths,
+            read_only_paths,
         )
 
         command = ask_agent(prompt, args.model)
